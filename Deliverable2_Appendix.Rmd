@@ -1,0 +1,253 @@
+---
+title: "Appendix"
+author: 
+date: 
+output:
+  word_document:
+    toc: yes
+    toc_depth: 2
+  html_document:
+    toc: yes
+    toc_depth: '2'
+    df_print: paged
+subtitle: Kogod School of Business
+---
+
+```{r global_options}
+knitr::opts_chunk$set(echo = T, warning = F, message = F)
+```
+
+## Read Data In
+
+```{r}
+library(tidyverse)
+MxMH <- read_csv("mxmh_survey_results.csv")
+```
+
+## Check for Missing Values and Drop NA's
+
+```{r}
+colSums(is.na(MxMH))
+MxMH <- subset(MxMH,select=-c(BPM))
+MxMH <- drop_na(MxMH)
+```
+
+
+## Visual Inspection of Response Variable, Anxiety Level on scale of 0 to 10
+
+```{r}
+par(mfrow=c(1,2))
+
+hist(MxMH$Anxiety,main="Anxiety Histogram",xlab="Anxiety")
+
+qqnorm(MxMH$Anxiety,main="Anxiety QQ Plot")
+qqline(MxMH$Anxiety)
+
+par(mfrow=c(1,1))
+```
+
+## Transformations to Variables
+
+```{r}
+MxMH <- MxMH %>%
+    mutate(`Primary streaming service`=as.factor(`Primary streaming service`)) %>%
+    mutate(`While working`=as.factor(`While working`)) %>%
+    mutate(Instrumentalist=as.factor(Instrumentalist)) %>%
+    mutate(Composer=as.factor(Composer)) %>%
+    mutate(`Fav genre`=as.factor(`Fav genre`)) %>%
+    mutate(Exploratory=as.factor(Exploratory)) %>%
+    mutate(`Foreign languages`=as.factor(`Foreign languages`)) %>%
+    mutate(`Music effects`=as.factor(`Music effects`))
+```
+
+## Count of Different Genres from Favorite Genre Predictor
+
+```{r}
+MxMH %>%
+    group_by(`Fav genre`) %>%
+    count() %>%
+    arrange(desc(n))
+```
+
+## Quantitative Analysis of Hours Per Day
+
+```{r}
+library(psych)
+describe(MxMH)[4,1:9]
+
+par(mfrow=c(1,2))
+
+hist(MxMH$`Hours per day`,main="Hours per Day Histogram",xlab="Hours per Day")
+
+qqnorm(MxMH$`Hours per day`,main="Hours per Day QQ Plot")
+qqline(MxMH$`Hours per day`)
+
+par(mfrow=c(1,1))
+```
+
+## Correlation Analysis for Quantitative/Binary Predictors:
+
+```{r}
+MxMH_1 <- MxMH %>%
+    mutate(`While working`=as.numeric(`While working`)) %>%
+    mutate(Instrumentalist=as.numeric(Instrumentalist)) %>%
+    mutate(Composer=as.numeric(Composer)) %>%
+    mutate(Exploratory=as.numeric(Exploratory)) %>%
+    mutate(`Foreign languages`=as.numeric(`Foreign languages`))
+selected_columns <- c("Age", "Hours per day","While working","Instrumentalist","Composer","Exploratory","Foreign languages","Anxiety")
+subset_data <- MxMH_1[, selected_columns]
+MxMH.cor <- cor(subset_data)
+library(corrplot)
+corrplot(MxMH.cor,order='hclust',method='number')
+corrplot(MxMH.cor,order='hclust',method='ellipse')
+```
+
+## Boxplots of Categorical Predictors and Response Variable, Anxiety
+
+```{r}
+library(ggplot2)
+par(mfrow=c(1,2))
+
+ggplot(MxMH, aes(x=`Primary streaming service`, y=Anxiety)) + 
+  geom_boxplot() +
+    theme(legend.position="none") +
+    coord_flip() 
+
+ggplot(MxMH, aes(x=`Fav genre`, y=Anxiety)) + 
+  geom_boxplot() +
+    theme(legend.position="none") +
+    coord_flip()
+
+par(mfrow=c(1,1))
+```
+
+## ANOVA test between Categorical Predictors and Response Variable, Anxiety
+
+```{r}
+aov.streaming <- aov(Anxiety ~ `Primary streaming service`,data=MxMH)
+aov.genre <- aov(Anxiety ~ `Fav genre`,data=MxMH)
+
+summary(aov.streaming)
+
+summary(aov.genre)
+```
+
+## Run OLS Model with initial set of predictors
+
+```{r}
+# Change reference level for primary streaming service
+MxMH$`Primary streaming service`<- relevel(MxMH$`Primary streaming service`,ref="I do not use a streaming service.")
+
+fit.ols <- lm(Anxiety ~ Age + `Primary streaming service` + `Hours per day` +
+                  `While working` + Instrumentalist + Composer +`Fav genre` + 
+                  Exploratory + `Foreign languages`, data =MxMH)
+summary(fit.ols)
+```
+
+## Testing for OLS Assumption: Errors are Normally Distributed (EN)
+
+```{r}
+# Testing Residuals
+fit.ols <- lm(Anxiety ~ Age + `Primary streaming service` + `Hours per day` +
+                  `While working` + Instrumentalist + Composer +`Fav genre` + 
+                  Exploratory + `Foreign languages`, data = MxMH)
+hist(fit.ols$residuals)
+plot(fit.ols,which=2)
+```
+
+## Testing for OLS Assumption: X's are Independent (XI)
+
+```{r}
+library(klaR)
+library(car)
+ci <- cond.index(fit.ols, data = MxMH)
+ci
+ci[length(ci)]
+vif(fit.ols)
+```
+
+## Testing for OLS Assumption: Linearity (LI)
+
+```{r}
+plot(MxMH$Age,MxMH$Anxiety)
+abline(lm(Anxiety ~ Age, data =MxMH), col = "red")
+
+plot(MxMH$`Hours per day`,MxMH$Anxiety)
+abline(lm(Anxiety ~ `Hours per day`, data=MxMH), col = "red")
+
+```
+
+## Testing for OLS Assumption: Average Error of Residuals (EA)
+
+```{r}
+mean(fit.ols$residuals)
+```
+
+## Testing for OLS Assumption: Error Variance is Constant (EV)
+
+```{r}
+plot(fit.ols,which=1)
+library(lmtest)
+bptest(fit.ols)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
