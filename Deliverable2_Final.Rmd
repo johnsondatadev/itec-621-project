@@ -21,7 +21,7 @@ knitr::opts_chunk$set(echo = T, warning = F, message = F)
 
 ```{r}
 library(tidyverse)
-MxMH <- read_csv("mxmh_survey_results.csv")
+MxMH <- read_csv("mxmh_survey_results.csv", show_col_types = F)
 ```
 
 ## Check for Missing Values and Drop NA's
@@ -249,6 +249,8 @@ Interaction between age and hours per day,interaction between explanatory and wh
 ```{r}
 Anxiety_Model_Interaction <- lm(Anxiety ~ Age + Age*`While working` + `Primary streaming service` + `Hours per day` +`Hours per day`*Exploratory+`While working` + Instrumentalist + Composer +`Fav genre` + Exploratory + `Foreign languages`, data = MxMH)
 summary(Anxiety_Model_Interaction)
+
+
 ```
 
 ## Lasso 1st specification
@@ -343,7 +345,77 @@ paste("Min 10FCV Test MSE =", min.mse.boost1, "Test RMSE =", min.rmse.boost1, "a
 
 ```
 
+## Selected models
 
+* OLS
+* OLS with Interaction
+* LASSO
+* LASSO with Interaction
+* Boosted Trees
+* Boosted Trees with Interaction
+
+We will use the k-fold cross-validation because it is the most commonly used of all the approaches. We partition the data into 10 separate folds. Hence, for k, we use 10. 
+
+### Cross validation for OLS
+
+```{r}
+library(boot)
+ols.glm.fit <- glm(Anxiety ~ Age + `Primary streaming service` + `Hours per day` +
+                  `While working` + Instrumentalist + Composer +`Fav genre` + 
+                  Exploratory + `Foreign languages`, data =MxMH)
+
+ols.cv.10k <- cv.glm(MxMH, ols.glm.fit, K = 10)
+ols.cv.10k.mse <- ols.cv.10k$delta[1]
+ols.cv.10k.rmse <- sqrt(ols.cv.10k.mse)
+```
+
+### Cross validation for OLS with Interaction
+
+```{r}
+ols.int.fit <- glm(Anxiety ~ Age + Age*`While working` + `Primary streaming service` + `Hours per day` +`Hours per day`*Exploratory+`While working` + Instrumentalist + Composer +`Fav genre` + Exploratory + `Foreign languages`, data = MxMH)
+
+ols.int.cv.10k <- cv.glm(MxMH, ols.int.fit, K = 10)
+ols.int.cv.10k.mse <- ols.int.cv.10k$delta[1]
+ols.int.cv.10k.rmse <- sqrt(ols.int.cv.10k.mse)
+```
+
+### Model Comparison
+
+```{r}
+results <- rbind(cbind(ols.cv.10k.mse, ols.cv.10k.rmse),
+      cbind(ols.int.cv.10k.mse, ols.int.cv.10k.rmse),
+      cbind(min.cv.lasso, sqrt(min.cv.lasso)),
+      cbind(min.cv.lasso1, sqrt(min.cv.lasso1)),
+      cbind(min.mse.boost, sqrt(min.mse.boost)),
+      cbind(min.mse.boost1, sqrt(min.mse.boost1))
+)
+
+colnames(results) <- c("10FCV MSE", "10FCV RMSE")
+rownames(results) <- c("OLS", "OLS with Interaction",
+                       "LASSO", "LASSO with Interaction",
+                       "Boosted Trees", "Boosted Trees with Interaction")
+
+results
+```
+
+```{r}
+anova(fit.ols, Anxiety_Model_Interaction)
+```
+
+Generally, the models without interaction terms seem better than the ones with interaction with the exception of the Boosted trees where both results are the same.
+
+Given our analytical goal of interpretation and the RMSE results that seem not to significantly differ between LASSO and Boosted trees, we will go with the LASSO without interaction term.
+
+LASSO has the advantage of automatically performing variable selection by shrinking some coefficients to zero, resulting in a more interpretable model. By excluding irrelevant predictors, LASSO helps focus on the most important variables that contribute to the outcome, making it easier to understand and communicate the relationships between predictors and the response variable.
+
+However, it's important to note that while LASSO provides interpretability through variable selection, it may not provide exact coefficient values due to the nature of its penalty. The coefficients in LASSO can be biased and may not have the same interpretation as in OLS. Nonetheless, the overall model interpretability and the identification of influential predictors are still valuable.
+
+
+## Refitting the model
+
+```{r}
+
+```
 
 
 
