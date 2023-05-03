@@ -192,7 +192,7 @@ bptest(fit.ols)
 ```
 
 ## Interaction Model
-Interaction between age and exploratory,interaction between hours per day and while working as added predictors
+Interaction between age and hours per day,interaction between explanatory and while working as added predictors
 ```{r}
 Anxiety_Model_Interaction <- lm(Anxiety ~ Age + Age*`While working` + `Primary streaming service` + `Hours per day` +`Hours per day`*Exploratory+`While working` + Instrumentalist + Composer +`Fav genre` + Exploratory + `Foreign languages`, data = MxMH)
 summary(Anxiety_Model_Interaction)
