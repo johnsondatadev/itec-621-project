@@ -3,13 +3,13 @@ title: "Appendix"
 author: 
 date: 
 output:
+  word_document:
+    toc: yes
+    toc_depth: 2
   html_document:
     toc: yes
     toc_depth: '2'
     df_print: paged
-  word_document:
-    toc: yes
-    toc_depth: 2
 subtitle: Kogod School of Business
 ---
 
@@ -21,7 +21,7 @@ knitr::opts_chunk$set(echo = T, warning = F, message = F)
 
 ```{r}
 library(tidyverse)
-MxMH <- read_csv("mxmh_survey_results.csv", show_col_types = F)
+MxMH <- read_csv("mxmh_survey_results.csv")
 ```
 
 ## Check for Missing Values and Drop NA's
@@ -232,12 +232,116 @@ bptest(Anxiety_Model_Interaction)
 ```
 
 
+## For simplicity just put the ols again here as well
+## OLS 1st Specification 
+
+```{r}
+
+fit.ols <- lm(Anxiety ~ Age + `Primary streaming service` + `Hours per day` +
+                  `While working` + Instrumentalist + Composer +`Fav genre` + 
+                  Exploratory + `Foreign languages`, data =MxMH)
+summary(fit.ols)
+```
+
+## OLS interaction specification 
+## Interaction Model
+Interaction between age and hours per day,interaction between explanatory and while working as added predictors
+```{r}
+Anxiety_Model_Interaction <- lm(Anxiety ~ Age + Age*`While working` + `Primary streaming service` + `Hours per day` +`Hours per day`*Exploratory+`While working` + Instrumentalist + Composer +`Fav genre` + Exploratory + `Foreign languages`, data = MxMH)
+summary(Anxiety_Model_Interaction)
+```
+
+## Lasso 1st specification
+
+```{r}
+library(glmnet)
+x <- model.matrix(Anxiety ~ Age + `Primary streaming service` + `Hours per day` + `While working` + Instrumentalist + Composer +`Fav genre` +  Exploratory + `Foreign languages`, data =MxMH)[ , -1]
+y <- MxMH$Anxiety
+lasso.logit <- glmnet(x, y, alpha = 1)
+plot(lasso.logit)
+set.seed(1)
+lasso.logit.cv10 <- cv.glmnet(x, y, alpha = 1)
+cbind("Lambda" = lasso.logit.cv10$lambda, "10FCV" = lasso.logit.cv10$cvm)
+plot(lasso.logit.cv10)
+lasso.best.lambda <- lasso.logit.cv10$lambda.min
+min.cv.lasso <- min(lasso.logit.cv10$cvm)
+cbind("Best Lambda" = lasso.best.lambda, "Best Log Lambda" = log(lasso.best.lambda), "Best 10FCV" = min.cv.lasso)
+lasso.coef <- coef(lasso.logit, s = lasso.best.lambda)
+lasso.coef.0 <- coef(lasso.logit, s = 0)
+all.coefs <- round(cbind(lasso.coef, exp(lasso.coef), lasso.coef.0, exp(lasso.coef.0)), digits = 3)
+colnames(all.coefs) <- c("Best LASSO", "Odds", "0-Lambda LASSO", "0dds")
+all.coefs
+```
+
+## Lasso 2nd specification with interaction 
+
+```{r}
+x1 <- model.matrix(Anxiety ~ Age + Age*`While working` + `Primary streaming service` + `Hours per day` +`Hours per day`*Exploratory+`While working` + Instrumentalist + Composer +`Fav genre` + Exploratory + `Foreign languages`, data = MxMH)[ , -1]
+y1 <- MxMH$Anxiety
+lasso.logit1 <- glmnet(x1, y1, alpha = 1)
+plot(lasso.logit1)
+set.seed(1)
+lasso.logit.cv101 <- cv.glmnet(x1, y1, alpha = 1)
+cbind("Lambda" = lasso.logit.cv101$lambda, "10FCV" = lasso.logit.cv101$cvm)
+plot(lasso.logit.cv101)
+lasso.best.lambda1 <- lasso.logit.cv101$lambda.min
+min.cv.lasso1 <- min(lasso.logit.cv101$cvm)
+cbind("Best Lambda" = lasso.best.lambda1, "Best Log Lambda" = log(lasso.best.lambda1), "Best 10FCV" = min.cv.lasso1)
+lasso.coef1 <- coef(lasso.logit1, s = lasso.best.lambda1)
+lasso.coef.01 <- coef(lasso.logit1, s = 0)
+all.coefs1 <- round(cbind(lasso.coef1, exp(lasso.coef1), lasso.coef.01, exp(lasso.coef.01)), digits = 3)
+colnames(all.coefs1) <- c("Best LASSO", "Odds", "0-Lambda LASSO", "0dds")
+all.coefs1
+```
+
+## Boosted Trees 1st specification
+
+```{r}
+library(gbm) # Generalized Boosted Regression Models
+set.seed(1) # To get replicable results
+MxMH.boost <- gbm(Anxiety ~ Age + `Primary streaming service` + `Hours per day` + `While working` + Instrumentalist + Composer +`Fav genre` +  Exploratory + `Foreign languages`, data =MxMH,
+distribution = "gaussian",
+shrinkage = 0.01,
+cv.folds = 10,
+n.trees = 5000,
+interaction.depth = 1)
+
+MxMH.boost
+
+summary(MxMH.boost)
+
+best.num.trees <- which.min(MxMH.boost$cv.error)
+# Smallest CV Test Error
+min.mse.boost <- round(min(MxMH.boost$cv.error), digits = 3)
+min.rmse.boost <- round(sqrt(min.mse.boost), digits = 3)
+# Display result
+paste("Min 10FCV Test MSE =", min.mse.boost, "Test RMSE =", min.rmse.boost, "at", best.num.trees, "trees")
+```
 
 
+## Boosted tree with interaction specification
 
+```{r}
+set.seed(1) # To get replicable results
+MxMH.boost1 <- gbm(Anxiety ~ Age + Age*`While working` + `Primary streaming service` + `Hours per day` +`Hours per day`*Exploratory+`While working` + Instrumentalist + Composer +`Fav genre` + Exploratory + `Foreign languages`, data = MxMH,
+distribution = "gaussian",
+shrinkage = 0.01,
+cv.folds = 10,
+n.trees = 5000,
+interaction.depth = 1)
 
+MxMH.boost1
 
+summary(MxMH.boost1)
 
+best.num.trees1 <- which.min(MxMH.boost1$cv.error)
+# Smallest CV Test Error
+min.mse.boost1 <- round(min(MxMH.boost1$cv.error), digits = 3)
+min.rmse.boost1 <- round(sqrt(min.mse.boost1), digits = 3)
+# Display result
+paste("Min 10FCV Test MSE =", min.mse.boost1, "Test RMSE =", min.rmse.boost1, "at", best.num.trees1, "trees")
+
+```
 
 
 
