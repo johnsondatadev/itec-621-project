@@ -21,7 +21,7 @@ knitr::opts_chunk$set(echo = T, warning = F, message = F)
 
 ```{r}
 library(tidyverse)
-MxMH <- read_csv("mxmh_survey_results.csv")
+MxMH <- read_csv("mxmh_survey_results.csv", show_col_types = F)
 ```
 
 ## Check for Missing Values and Drop NA's
